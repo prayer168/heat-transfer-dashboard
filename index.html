@@ -729,5 +729,317 @@
 })();
 </script>
 
+<!-- ══════════════════════════════════════════════ QUIZ ══ -->
+<section id="quiz-section">
+  <div class="quiz-header">
+    <h2>熱傳播小測驗</h2>
+    <p>共 10 題，選完後按「查看結果」</p>
+  </div>
+  <div id="quiz-container"></div>
+  <div class="quiz-actions">
+    <button id="btn-submit" onclick="submitQuiz()">查看結果</button>
+    <button id="btn-reset" onclick="resetQuiz()" style="display:none">重新作答</button>
+  </div>
+  <div id="score-box" style="display:none"></div>
+</section>
+
+<style>
+#quiz-section {
+  max-width: 860px;
+  margin: 0 auto 4rem;
+  padding: 0 2rem;
+}
+.quiz-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+.quiz-header h2 {
+  font-size: 1.8rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #00e5a0, #00aaff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.quiz-header p { color: var(--muted); margin-top: 0.4rem; }
+
+.q-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1.4rem 1.6rem;
+  margin-bottom: 1.2rem;
+  transition: border-color 0.3s;
+}
+.q-card.correct  { border-color: var(--green); background: rgba(0,229,160,0.06); }
+.q-card.wrong    { border-color: var(--hot);   background: rgba(255,78,26,0.06); }
+
+.q-num {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.5rem;
+}
+.q-text {
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.6;
+  margin-bottom: 1rem;
+}
+
+.options { display: flex; flex-direction: column; gap: 0.55rem; }
+
+.opt {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 1rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.03);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  font-size: 0.92rem;
+  user-select: none;
+}
+.opt:hover:not(.disabled) {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.2);
+  transform: translateX(3px);
+}
+.opt input[type=radio] { accent-color: var(--green); width: 16px; height: 16px; flex-shrink: 0; }
+
+.opt.opt-correct { background: rgba(0,229,160,0.15); border-color: var(--green); color: var(--green); font-weight: 600; }
+.opt.opt-wrong   { background: rgba(255,78,26,0.12);  border-color: var(--hot);   color: var(--hot); }
+.opt.opt-answer  { background: rgba(0,229,160,0.08);  border-color: rgba(0,229,160,0.5); }
+.opt.disabled    { pointer-events: none; }
+
+.q-explain {
+  margin-top: 0.9rem;
+  padding: 0.7rem 1rem;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.04);
+  font-size: 0.84rem;
+  color: var(--muted);
+  line-height: 1.6;
+  display: none;
+}
+.q-explain.show { display: block; }
+.q-explain strong { color: var(--text); }
+
+.result-icon { font-size: 1.1rem; margin-right: 0.3rem; }
+
+.quiz-actions {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin: 1.5rem 0 1rem;
+}
+.quiz-actions button {
+  padding: 0.75rem 2.2rem;
+  border-radius: 12px;
+  border: none;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.1s;
+}
+.quiz-actions button:hover { opacity: 0.85; transform: translateY(-2px); }
+
+#btn-submit { background: linear-gradient(135deg, #00e5a0, #00aaff); color: #0f1117; }
+#btn-reset  { background: rgba(255,255,255,0.1); color: var(--text); border: 1px solid var(--border); }
+
+#score-box {
+  text-align: center;
+  padding: 1.8rem;
+  border-radius: 18px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  margin-top: 1rem;
+  animation: fadeIn 0.5s ease;
+}
+@keyframes fadeIn { from { opacity:0; transform:translateY(10px) } to { opacity:1; transform:none } }
+
+#score-box .score-num {
+  font-size: 3.5rem;
+  font-weight: 900;
+  background: linear-gradient(135deg, #00e5a0, #00aaff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+#score-box .score-label { color: var(--muted); font-size: 1rem; margin-top: 0.3rem; }
+#score-box .score-msg   { margin-top: 0.8rem; font-size: 1.1rem; font-weight: 600; }
+
+.progress-track {
+  width: 200px; height: 8px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 4px;
+  margin: 0.8rem auto 0;
+  overflow: hidden;
+}
+.progress-fill { height: 100%; border-radius: 4px; transition: width 1s ease; background: linear-gradient(90deg,#00e5a0,#00aaff); }
+</style>
+
+<script>
+const QUESTIONS = [
+  {
+    q: '用手觸摸一根被加熱的金屬棒，感受到熱，這主要是哪種熱傳播方式？',
+    opts: ['對流', '輻射', '傳導', '蒸發'],
+    ans: 2,
+    explain: '金屬是固體，熱能透過粒子碰撞振動從高溫端傳向低溫端，屬於<strong>傳導</strong>。'
+  },
+  {
+    q: '太陽的熱能穿越宇宙真空傳到地球，是透過哪種方式？',
+    opts: ['傳導', '對流', '蒸發冷卻', '輻射'],
+    ans: 3,
+    explain: '真空中沒有物質，只有<strong>輻射</strong>（電磁波）能在無介質的環境中傳播。'
+  },
+  {
+    q: '暖氣機讓整個房間變暖，主要是透過哪種方式？',
+    opts: ['傳導', '對流', '輻射', '燃燒'],
+    ans: 1,
+    explain: '空氣被加熱後密度降低而上升，冷空氣下沉，形成<strong>對流</strong>循環，使整個空間均勻受熱。'
+  },
+  {
+    q: '下列哪種情況「不需要」任何物質介質就能傳熱？',
+    opts: ['鐵鍋加熱食物', '海水的洋流', '太陽烤熱地面', '熱水瓶裡水的熱傳遞'],
+    ans: 2,
+    explain: '太陽熱能以<strong>紅外線（電磁波）</strong>的形式輻射，不需要任何介質。'
+  },
+  {
+    q: '下列物質中，導熱能力（傳導效率）最強的是？',
+    opts: ['木頭', '空氣', '水', '金屬（鐵）'],
+    ans: 3,
+    explain: '金屬中自由電子多，能快速傳遞能量，因此<strong>金屬導熱效率最高</strong>。'
+  },
+  {
+    q: '煮湯時鍋底的湯被加熱後上升、冷湯下沉，這是哪種熱傳播方式？',
+    opts: ['傳導', '對流', '輻射', '蒸發'],
+    ans: 1,
+    explain: '液體被加熱後密度減小而上升，冷液體密度大而下沉，形成<strong>對流</strong>。'
+  },
+  {
+    q: '輻射傳熱的載體是什麼？',
+    opts: ['空氣分子碰撞', '液體粒子流動', '電磁波（光子）', '金屬自由電子'],
+    ans: 2,
+    explain: '輻射以<strong>電磁波（主要是紅外線）</strong>傳遞能量，不需要任何介質，速度為光速。'
+  },
+  {
+    q: '穿毛衣會保暖，主要是因為毛衣纖維之間的空氣能阻止哪種熱傳播方式？',
+    opts: ['對流', '輻射', '傳導', '傳導和對流'],
+    ans: 3,
+    explain: '毛衣纖維間的靜止空氣是<strong>熱的不良導體</strong>，阻礙熱能透過傳導散失；同時靜止的空氣也減少對流。最主要阻礙的是<strong>傳導</strong>。'
+  },
+  {
+    q: '對流現象只能發生在哪些物質狀態中？',
+    opts: ['僅固體', '固體和液體', '液體和氣體', '固體、液體和氣體'],
+    ans: 2,
+    explain: '對流需要物質能自由<strong>流動</strong>，因此只發生在<strong>液體和氣體</strong>中，固體粒子無法移動位置。'
+  },
+  {
+    q: '在三種熱傳播方式中，哪一種在真空中的傳播速度最快？',
+    opts: ['傳導（固體）', '對流（氣體）', '輻射（電磁波）', '三種速度相同'],
+    ans: 2,
+    explain: '<strong>輻射</strong>以電磁波（光速 ≈ 3×10⁸ m/s）傳播，遠快於傳導和對流，且是唯一能在真空中傳播的方式。'
+  },
+];
+
+let submitted = false;
+
+function buildQuiz() {
+  const container = document.getElementById('quiz-container');
+  container.innerHTML = '';
+  QUESTIONS.forEach((q, i) => {
+    const card = document.createElement('div');
+    card.className = 'q-card';
+    card.id = `q-${i}`;
+    card.innerHTML = `
+      <div class="q-num">第 ${i+1} 題</div>
+      <div class="q-text">${q.q}</div>
+      <div class="options">
+        ${q.opts.map((o, j) => `
+          <label class="opt" id="opt-${i}-${j}">
+            <input type="radio" name="q${i}" value="${j}"> ${o}
+          </label>`).join('')}
+      </div>
+      <div class="q-explain" id="exp-${i}">💡 ${q.explain}</div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+function submitQuiz() {
+  if (submitted) return;
+  let correct = 0;
+  QUESTIONS.forEach((q, i) => {
+    const chosen = document.querySelector(`input[name="q${i}"]:checked`);
+    const card = document.getElementById(`q-${i}`);
+    const exp = document.getElementById(`exp-${i}`);
+
+    // disable all options
+    document.querySelectorAll(`input[name="q${i}"]`).forEach(r => {
+      r.disabled = true;
+      r.closest('label').classList.add('disabled');
+    });
+
+    // mark correct answer always
+    document.getElementById(`opt-${i}-${q.ans}`).classList.add('opt-answer');
+
+    if (chosen) {
+      const val = parseInt(chosen.value);
+      if (val === q.ans) {
+        correct++;
+        card.classList.add('correct');
+        document.getElementById(`opt-${i}-${val}`).classList.add('opt-correct');
+      } else {
+        card.classList.add('wrong');
+        document.getElementById(`opt-${i}-${val}`).classList.add('opt-wrong');
+      }
+    } else {
+      card.classList.add('wrong');
+    }
+    exp.classList.add('show');
+  });
+
+  submitted = true;
+  document.getElementById('btn-submit').style.display = 'none';
+  document.getElementById('btn-reset').style.display = 'inline-block';
+
+  const pct = Math.round(correct / QUESTIONS.length * 100);
+  const msgs = [
+    [90, '太厲害了！熱傳播知識滿分！🔥'],
+    [70, '不錯！對熱傳播有良好的理解。'],
+    [50, '有點基礎，再複習一下動畫吧！'],
+    [0,  '建議重新瀏覽上方動畫，再挑戰一次！'],
+  ];
+  const msg = msgs.find(([t]) => pct >= t)[1];
+
+  const box = document.getElementById('score-box');
+  box.style.display = 'block';
+  box.innerHTML = `
+    <div class="score-num">${correct} / ${QUESTIONS.length}</div>
+    <div class="score-label">答對題數</div>
+    <div class="progress-track"><div class="progress-fill" style="width:0%" id="pf"></div></div>
+    <div class="score-msg">${msg}</div>
+  `;
+  setTimeout(() => { document.getElementById('pf').style.width = pct + '%'; }, 50);
+  box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function resetQuiz() {
+  submitted = false;
+  document.getElementById('btn-submit').style.display = 'inline-block';
+  document.getElementById('btn-reset').style.display = 'none';
+  document.getElementById('score-box').style.display = 'none';
+  buildQuiz();
+  document.getElementById('quiz-section').scrollIntoView({ behavior: 'smooth' });
+}
+
+buildQuiz();
+</script>
+
 </body>
 </html>
